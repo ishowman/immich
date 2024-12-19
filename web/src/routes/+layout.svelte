@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import { afterNavigate, beforeNavigate } from '$app/navigation';
   import { page } from '$app/stores';
   import DownloadPanel from '$lib/components/asset-viewer/download-panel.svelte';
@@ -16,26 +18,24 @@
   import { user } from '$lib/stores/user.store';
   import { closeWebsocketConnection, openWebsocketConnection } from '$lib/stores/websocket';
   import { copyToClipboard, setKey } from '$lib/utils';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, type Snippet } from 'svelte';
   import '../app.css';
   import { isAssetViewerRoute, isSharedLinkRoute } from '$lib/utils/navigation';
   import DialogWrapper from '$lib/components/shared-components/dialog/dialog-wrapper.svelte';
   import { t } from 'svelte-i18n';
   import Error from '$lib/components/error.svelte';
   import { shortcut } from '$lib/actions/shortcut';
-
-  let showNavigationLoadingBar = false;
-  $: changeTheme($colorTheme);
-
-  $: if ($user) {
-    openWebsocketConnection();
-  } else {
-    closeWebsocketConnection();
+  interface Props {
+    children?: Snippet;
   }
+
+  let { children }: Props = $props();
+
+  let showNavigationLoadingBar = $state(false);
 
   const changeTheme = (theme: ThemeSetting) => {
     if (theme.system) {
-      theme.value = window.matchMedia('(prefers-color-scheme: dark)').matches ? Theme.DARK : Theme.LIGHT;
+      theme.value = globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? Theme.DARK : Theme.LIGHT;
     }
 
     if (theme.value === Theme.LIGHT) {
@@ -59,7 +59,7 @@
     const element = document.querySelector('#stencil');
     element?.remove();
     // if the browser theme changes, changes the Immich theme too
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleChangeTheme);
+    globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleChangeTheme);
   });
 
   onDestroy(() => {
@@ -82,6 +82,16 @@
   afterNavigate(() => {
     showNavigationLoadingBar = false;
   });
+  run(() => {
+    changeTheme($colorTheme);
+  });
+  run(() => {
+    if ($user) {
+      openWebsocketConnection();
+    } else {
+      closeWebsocketConnection();
+    }
+  });
 </script>
 
 <svelte:head>
@@ -100,7 +110,7 @@
     {#if $page.data.meta.imageUrl}
       <meta
         property="og:image"
-        content={new URL($page.data.meta.imageUrl, $serverConfig.externalDomain || window.location.origin).href}
+        content={new URL($page.data.meta.imageUrl, $serverConfig.externalDomain || globalThis.location.origin).href}
       />
     {/if}
 
@@ -111,7 +121,7 @@
     {#if $page.data.meta.imageUrl}
       <meta
         name="twitter:image"
-        content={new URL($page.data.meta.imageUrl, $serverConfig.externalDomain || window.location.origin).href}
+        content={new URL($page.data.meta.imageUrl, $serverConfig.externalDomain || globalThis.location.origin).href}
       />
     {/if}
   {/if}
@@ -135,7 +145,7 @@
 {#if $page.data.error}
   <Error error={$page.data.error}></Error>
 {:else}
-  <slot />
+  {@render children?.()}
 {/if}
 
 {#if showNavigationLoadingBar}
